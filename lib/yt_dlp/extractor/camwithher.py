@@ -48,8 +48,7 @@ class CamWithHerIE(InfoExtractor):
             r'<a[^>]+href=["\']/download/\?v=(\d+)', webpage, 'video id')
 
         # Video URL construction algorithm is reverse-engineered from cwhplayer.swf
-        rtmp_url = 'rtmp://camwithher.tv/clipshare/%s' % (
-            ('mp4:%s.mp4' % flv_id) if int(flv_id) > 2010 else flv_id)
+        rtmp_url = f"rtmp://camwithher.tv/clipshare/{f'mp4:{flv_id}.mp4' if int(flv_id) > 2010 else flv_id}"
 
         title = self._html_search_regex(
             r'<div[^>]+style="float:left"[^>]*>\s*<h2>(.+?)</h2>', webpage, 'title')

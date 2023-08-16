@@ -2,7 +2,8 @@ try:
     import contextvars  # noqa: F401
 except Exception:
     raise Exception(
-        f'You are using an unsupported version of Python. Only Python versions 3.7 and above are supported by yt-dlp')  # noqa: F541
+        'You are using an unsupported version of Python. Only Python versions 3.7 and above are supported by yt-dlp'
+    )
 
 __license__ = 'Public Domain'
 
@@ -82,7 +83,7 @@ def get_urls(urls, batchfile, verbose):
                 read_stdin('URLs') if batchfile == '-'
                 else open(expand_path(batchfile), encoding='utf-8', errors='ignore'))
             if verbose:
-                write_string('[debug] Batch file urls: ' + repr(batch_urls) + '\n')
+                write_string(f'[debug] Batch file urls: {repr(batch_urls)}' + '\n')
         except OSError:
             _exit(f'ERROR: batch file {batchfile} could not be read')
     _enc = preferredencoding()
@@ -126,7 +127,7 @@ def set_compat_opts(opts):
         if name not in opts.compat_opts:
             return False
         opts.compat_opts.discard(name)
-        opts.compat_opts.update(['*%s' % name])
+        opts.compat_opts.update([f'*{name}'])
         return True
 
     def set_default_compat(compat_name, opt_name, default=True, remove_compat=True):
@@ -220,8 +221,12 @@ def validate_options(opts):
 
     if opts.wait_for_video is not None:
         min_wait, max_wait, *_ = map(parse_duration, opts.wait_for_video.split('-', 1) + [None])
-        validate(min_wait is not None and not (max_wait is None and '-' in opts.wait_for_video),
-                 'time range to wait for video', opts.wait_for_video)
+        validate(
+            min_wait is not None
+            and (max_wait is not None or '-' not in opts.wait_for_video),
+            'time range to wait for video',
+            opts.wait_for_video,
+        )
         validate_minmax(min_wait, max_wait, 'time range to wait for video')
         opts.wait_for_video = (min_wait, max_wait)
 
@@ -267,9 +272,8 @@ def validate_options(opts):
 
         if op == 'exp':
             return lambda n: min(float(start) * (float(step or 2) ** n), float(limit or 'inf'))
-        else:
-            default_step = start if op or limit else 0
-            return lambda n: min(float(start) + float(step or default_step) * n, float(limit or 'inf'))
+        default_step = start if op or limit else 0
+        return lambda n: min(float(start) + float(step or default_step) * n, float(limit or 'inf'))
 
     for key, expr in opts.retry_sleep.items():
         if not expr:
@@ -390,13 +394,13 @@ def validate_options(opts):
     # MetadataParser
     def metadataparser_actions(f):
         if isinstance(f, str):
-            cmd = '--parse-metadata %s' % compat_shlex_quote(f)
+            cmd = f'--parse-metadata {compat_shlex_quote(f)}'
             try:
                 actions = [MetadataFromFieldPP.to_action(f)]
             except Exception as err:
                 raise ValueError(f'{cmd} is invalid; {err}')
         else:
-            cmd = '--replace-in-metadata %s' % ' '.join(map(compat_shlex_quote, f))
+            cmd = f"--replace-in-metadata {' '.join(map(compat_shlex_quote, f))}"
             actions = ((MetadataParserPP.Actions.REPLACE, x, *f[1:]) for x in f[0].split(','))
 
         for action in actions:
@@ -407,7 +411,9 @@ def validate_options(opts):
             yield action
 
     if opts.metafromtitle is not None:
-        opts.parse_metadata.setdefault('pre_process', []).append('title:%s' % opts.metafromtitle)
+        opts.parse_metadata.setdefault('pre_process', []).append(
+            f'title:{opts.metafromtitle}'
+        )
     opts.parse_metadata = {
         k: list(itertools.chain(*map(metadataparser_actions, v)))
         for k, v in opts.parse_metadata.items()
@@ -572,7 +578,11 @@ def validate_options(opts):
         if not opts.dumpjson or opts.print_json or opts.dump_single_json:
             opts.writeinfojson = True
 
-    if opts.allsubtitles and not (opts.embedsubtitles or opts.writeautomaticsub):
+    if (
+        opts.allsubtitles
+        and not opts.embedsubtitles
+        and not opts.writeautomaticsub
+    ):
         # --all-sub automatically sets --write-sub if --write-auto-sub is not given
         opts.writesubtitles = True
 
@@ -990,12 +1000,11 @@ def _real_main(argv=None):
 
         parser.destroy()
         try:
-            if opts.load_info_filename is not None:
-                if all_urls:
-                    ydl.report_warning('URLs are ignored due to --load-info-json')
-                return ydl.download_with_info_file(expand_path(opts.load_info_filename))
-            else:
+            if opts.load_info_filename is None:
                 return ydl.download(all_urls)
+            if all_urls:
+                ydl.report_warning('URLs are ignored due to --load-info-json')
+            return ydl.download_with_info_file(expand_path(opts.load_info_filename))
         except DownloadCancelled:
             ydl.to_screen('Aborting remaining downloads')
             return 101

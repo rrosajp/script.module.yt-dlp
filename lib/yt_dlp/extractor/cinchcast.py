@@ -26,8 +26,9 @@ class CinchcastIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
         doc = self._download_xml(
-            'http://www.blogtalkradio.com/playerasset/mrss?assetType=single&assetId=%s' % video_id,
-            video_id)
+            f'http://www.blogtalkradio.com/playerasset/mrss?assetType=single&assetId={video_id}',
+            video_id,
+        )
 
         item = doc.find('.//item')
         title = xpath_text(item, './title', fatal=True)
@@ -39,9 +40,9 @@ class CinchcastIE(InfoExtractor):
             'format_id': 'main',
             'url': item.find('./{http://search.yahoo.com/mrss/}content').attrib['url'],
         }]
-        backup_url = xpath_text(
-            item, './{http://developer.longtailvideo.com/trac/}backupContent')
-        if backup_url:
+        if backup_url := xpath_text(
+            item, './{http://developer.longtailvideo.com/trac/}backupContent'
+        ):
             formats.append({
                 'preference': 2,  # seems to be more reliable
                 'format_id': 'backup',

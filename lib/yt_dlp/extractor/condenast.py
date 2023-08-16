@@ -111,7 +111,7 @@ class CondeNastIE(InfoExtractor):
             r'(?s)<div class="cne-series-info">.*?<h1>(.+?)</h1>',
             webpage, 'series title')
         url_object = compat_urllib_parse_urlparse(url)
-        base_url = '%s://%s' % (url_object.scheme, url_object.netloc)
+        base_url = f'{url_object.scheme}://{url_object.netloc}'
         m_paths = re.finditer(
             r'(?s)<p class="cne-thumb-title">.*?<a href="(/watch/.+?)["\?]', webpage)
         paths = orderedSet(m.group(1) for m in m_paths)
@@ -143,8 +143,6 @@ class CondeNastIE(InfoExtractor):
     def _extract_video(self, params):
         video_id = params['videoId']
 
-        video_info = None
-
         # New API path
         query = params.copy()
         query['embedType'] = 'inline'
@@ -158,18 +156,18 @@ class CondeNastIE(InfoExtractor):
                 info_page = self._download_json(
                     'http://player.cnevids.com/player/video.js', video_id,
                     'Downloading video info', fatal=False, query=params)
-        if info_page:
-            video_info = info_page.get('video')
+        video_info = info_page.get('video') if info_page else None
         if not video_info:
             info_page = self._download_webpage(
                 'http://player.cnevids.com/player/loader.js',
                 video_id, 'Downloading loader info', query=params)
         if not video_info:
             info_page = self._download_webpage(
-                'https://player.cnevids.com/inline/video/%s.js' % video_id,
-                video_id, 'Downloading inline info', query={
-                    'target': params.get('target', 'embedplayer')
-                })
+                f'https://player.cnevids.com/inline/video/{video_id}.js',
+                video_id,
+                'Downloading inline info',
+                query={'target': params.get('target', 'embedplayer')},
+            )
 
         if not video_info:
             video_info = self._parse_json(
@@ -191,17 +189,19 @@ class CondeNastIE(InfoExtractor):
                     m3u8_id='hls', fatal=False))
                 continue
             quality = fdata.get('quality')
-            formats.append({
-                'format_id': ext + ('-%s' % quality if quality else ''),
-                'url': src,
-                'ext': ext,
-                'quality': 1 if quality == 'high' else 0,
-            })
+            formats.append(
+                {
+                    'format_id': ext + (f'-{quality}' if quality else ''),
+                    'url': src,
+                    'ext': ext,
+                    'quality': 1 if quality == 'high' else 0,
+                }
+            )
 
         subtitles = {}
         for t, caption in video_info.get('captions', {}).items():
             caption_url = caption.get('src')
-            if not (t in ('vtt', 'srt', 'tml') and caption_url):
+            if t not in ('vtt', 'srt', 'tml') or not caption_url:
                 continue
             subtitles.setdefault('en', []).append({'url': caption_url})
 
@@ -234,17 +234,23 @@ class CondeNastIE(InfoExtractor):
 
         if url_type == 'series':
             return self._extract_series(url, webpage)
+        if video := try_get(
+            self._parse_json(
+                self._search_regex(
+                    r'__PRELOADED_STATE__\s*=\s*({.+?});',
+                    webpage,
+                    'preload state',
+                    '{}',
+                ),
+                display_id,
+            ),
+            lambda x: x['transformed']['video'],
+        ):
+            params = {'videoId': video['id']}
+            info = {'description': strip_or_none(video.get('description'))}
         else:
-            video = try_get(self._parse_json(self._search_regex(
-                r'__PRELOADED_STATE__\s*=\s*({.+?});', webpage,
-                'preload state', '{}'), display_id),
-                lambda x: x['transformed']['video'])
-            if video:
-                params = {'videoId': video['id']}
-                info = {'description': strip_or_none(video.get('description'))}
-            else:
-                params = self._extract_video_params(webpage, display_id)
-                info = self._search_json_ld(
-                    webpage, display_id, fatal=False)
-            info.update(self._extract_video(params))
-            return info
+            params = self._extract_video_params(webpage, display_id)
+            info = self._search_json_ld(
+                webpage, display_id, fatal=False)
+        info.update(self._extract_video(params))
+        return info

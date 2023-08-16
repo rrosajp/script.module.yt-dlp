@@ -184,7 +184,8 @@ class Channel9IE(InfoExtractor):
 
             if not formats and not slides and not zip_file:
                 self.raise_no_formats(
-                    'None of recording, slides or zip are available for %s' % content_path)
+                    f'None of recording, slides or zip are available for {content_path}'
+                )
 
             subtitles = {}
             for caption in content_data.get('Captions', []):
@@ -235,12 +236,12 @@ class Channel9IE(InfoExtractor):
 
             if slides:
                 d = common.copy()
-                d.update({'title': title + '-Slides', 'url': slides})
+                d.update({'title': f'{title}-Slides', 'url': slides})
                 contents.append(d)
 
             if zip_file:
                 d = common.copy()
-                d.update({'title': title + '-Zip', 'url': zip_file})
+                d.update({'title': f'{title}-Zip', 'url': zip_file})
                 contents.append(d)
 
             if formats:

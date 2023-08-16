@@ -251,7 +251,9 @@ class ArchiveOrgIE(InfoExtractor):
                     'url': 'https://archive.org/' + track['file'].lstrip('/')
                 }
 
-        metadata = self._download_json('http://archive.org/metadata/' + identifier, identifier)
+        metadata = self._download_json(
+            f'http://archive.org/metadata/{identifier}', identifier
+        )
         m = metadata['metadata']
         identifier = m['identifier']
 
@@ -270,17 +272,21 @@ class ArchiveOrgIE(InfoExtractor):
 
         for f in metadata['files']:
             if f['name'] in entries:
-                entries[f['name']] = merge_dicts(entries[f['name']], {
-                    'id': identifier + '/' + f['name'],
-                    'title': f.get('title') or f['name'],
-                    'display_id': f['name'],
-                    'description': clean_html(f.get('description')),
-                    'creator': f.get('creator'),
-                    'duration': parse_duration(f.get('length')),
-                    'track_number': int_or_none(f.get('track')),
-                    'album': f.get('album'),
-                    'discnumber': int_or_none(f.get('disc')),
-                    'release_year': int_or_none(f.get('year'))})
+                entries[f['name']] = merge_dicts(
+                    entries[f['name']],
+                    {
+                        'id': f'{identifier}/' + f['name'],
+                        'title': f.get('title') or f['name'],
+                        'display_id': f['name'],
+                        'description': clean_html(f.get('description')),
+                        'creator': f.get('creator'),
+                        'duration': parse_duration(f.get('length')),
+                        'track_number': int_or_none(f.get('track')),
+                        'album': f.get('album'),
+                        'discnumber': int_or_none(f.get('disc')),
+                        'release_year': int_or_none(f.get('year')),
+                    },
+                )
                 entry = entries[f['name']]
             elif traverse_obj(f, 'original', expected_type=str) in entries:
                 entry = entries[f['original']]
@@ -288,12 +294,16 @@ class ArchiveOrgIE(InfoExtractor):
                 continue
 
             if f.get('format') == 'Thumbnail':
-                entry['thumbnails'].append({
-                    'id': f['name'],
-                    'url': 'https://archive.org/download/' + identifier + '/' + f['name'],
-                    'width': int_or_none(f.get('width')),
-                    'height': int_or_none(f.get('width')),
-                    'filesize': int_or_none(f.get('size'))})
+                entry['thumbnails'].append(
+                    {
+                        'id': f['name'],
+                        'url': f'https://archive.org/download/{identifier}/'
+                        + f['name'],
+                        'width': int_or_none(f.get('width')),
+                        'height': int_or_none(f.get('width')),
+                        'filesize': int_or_none(f.get('size')),
+                    }
+                )
 
             extension = (f['name'].rsplit('.', 1) + [None])[1]
 
@@ -302,16 +312,21 @@ class ArchiveOrgIE(InfoExtractor):
             # For now to be safe, we will only skip them if there is no user logged in.
             is_logged_in = bool(self._get_cookies('https://archive.org').get('logged-in-sig'))
             if extension in KNOWN_EXTENSIONS and (not f.get('private') or is_logged_in):
-                entry['formats'].append({
-                    'url': 'https://archive.org/download/' + identifier + '/' + f['name'],
-                    'format': f.get('format'),
-                    'width': int_or_none(f.get('width')),
-                    'height': int_or_none(f.get('height')),
-                    'filesize': int_or_none(f.get('size')),
-                    'protocol': 'https',
-                    'source_preference': 0 if f.get('source') == 'original' else -1,
-                    'format_note': f.get('source')
-                })
+                entry['formats'].append(
+                    {
+                        'url': f'https://archive.org/download/{identifier}/'
+                        + f['name'],
+                        'format': f.get('format'),
+                        'width': int_or_none(f.get('width')),
+                        'height': int_or_none(f.get('height')),
+                        'filesize': int_or_none(f.get('size')),
+                        'protocol': 'https',
+                        'source_preference': 0
+                        if f.get('source') == 'original'
+                        else -1,
+                        'format_note': f.get('source'),
+                    }
+                )
 
         for entry in entries.values():
             entry['_format_sort_fields'] = ('source', )
@@ -697,9 +712,11 @@ class YoutubeWebArchiveIE(InfoExtractor):
             note or 'Downloading CDX API JSON', query=query, fatal=fatal)
         if isinstance(res, list) and len(res) >= 2:
             # format response to make it easier to use
-            return list(dict(zip(res[0], v)) for v in res[1:])
+            return [dict(zip(res[0], v)) for v in res[1:]]
         elif not isinstance(res, list) or len(res) != 0:
-            self.report_warning('Error while parsing CDX API response' + bug_reports_message())
+            self.report_warning(
+                f'Error while parsing CDX API response{bug_reports_message()}'
+            )
 
     def _extract_webpage_title(self, webpage):
         page_title = self._html_extract_title(webpage, default='')
@@ -895,8 +912,13 @@ class YoutubeWebArchiveIE(InfoExtractor):
         for retry in retry_manager:
             try:
                 urlh = self._request_webpage(
-                    HEADRequest('https://web.archive.org/web/2oe_/http://wayback-fakeurl.archive.org/yt/%s' % video_id),
-                    video_id, note='Fetching archived video file url', expected_status=True)
+                    HEADRequest(
+                        f'https://web.archive.org/web/2oe_/http://wayback-fakeurl.archive.org/yt/{video_id}'
+                    ),
+                    video_id,
+                    note='Fetching archived video file url',
+                    expected_status=True,
+                )
             except ExtractorError as e:
                 # HTTP Error 404 is expected if the video is not saved.
                 if isinstance(e.cause, compat_HTTPError) and e.cause.code == 404:
@@ -913,9 +935,13 @@ class YoutubeWebArchiveIE(InfoExtractor):
         info = {'id': video_id}
         for capture in capture_dates:
             webpage = self._download_webpage(
-                (self._WAYBACK_BASE_URL + 'http://www.youtube.com/watch?v=%s') % (capture, video_id),
-                video_id=video_id, fatal=False, errnote='unable to download capture webpage (it may not be archived)',
-                note='Downloading capture webpage')
+                f'{self._WAYBACK_BASE_URL}http://www.youtube.com/watch?v=%s'
+                % (capture, video_id),
+                video_id=video_id,
+                fatal=False,
+                errnote='unable to download capture webpage (it may not be archived)',
+                note='Downloading capture webpage',
+            )
             current_info = self._extract_metadata(video_id, webpage or '')
             # Try avoid getting deleted video metadata
             if current_info.get('title'):
@@ -932,14 +958,14 @@ class YoutubeWebArchiveIE(InfoExtractor):
             format = {'url': url, 'filesize': int_or_none(urlh.headers.get('x-archive-orig-content-length'))}
             itag = try_get(video_file_url_qs, lambda x: x['itag'][0])
             if itag and itag in YoutubeIE._formats:
-                format.update(YoutubeIE._formats[itag])
-                format.update({'format_id': itag})
+                format |= YoutubeIE._formats[itag]
+                format['format_id'] = itag
             else:
                 mime = try_get(video_file_url_qs, lambda x: x['mime'][0])
                 ext = (mimetype2ext(mime)
                        or urlhandle_detect_ext(urlh)
                        or mimetype2ext(urlh.headers.get('x-archive-guessed-content-type')))
-                format.update({'ext': ext})
+                format['ext'] = ext
             info['formats'] = [format]
             if not info.get('duration'):
                 info['duration'] = str_to_int(try_get(video_file_url_qs, lambda x: x['dur'][0]))
@@ -1058,11 +1084,10 @@ class VLiveWebArchiveIE(InfoExtractor):
                 continue
 
     def _download_archived_json(self, url, video_id, **kwargs):
-        page = self._download_archived_page(url, video_id, **kwargs)
-        if not page:
-            raise ExtractorError('Page was not archived', expected=True)
-        else:
+        if page := self._download_archived_page(url, video_id, **kwargs):
             return self._parse_json(page, video_id)
+        else:
+            raise ExtractorError('Page was not archived', expected=True)
 
     def _extract_formats_from_m3u8(self, m3u8_url, params, video_id):
         m3u8_doc = self._download_archived_page(m3u8_url, video_id, note='Downloading m3u8', query=params, fatal=False)
@@ -1078,10 +1103,13 @@ class VLiveWebArchiveIE(InfoExtractor):
                 m3u8_doc[i] = f'{self._WAYBACK_BASE_URL}{url_base}/{line}?{urllib.parse.urlencode(params)}'
                 first_segment = first_segment or m3u8_doc[i]
 
-        # Segments may not have been archived. See https://web.archive.org/web/20221127190050/http://www.vlive.tv/video/101870
-        urlh = self._request_webpage(HEADRequest(first_segment), video_id, errnote=False,
-                                     fatal=False, note='Check first segment availablity')
-        if urlh:
+        if urlh := self._request_webpage(
+            HEADRequest(first_segment),
+            video_id,
+            errnote=False,
+            fatal=False,
+            note='Check first segment availablity',
+        ):
             formats, subtitles = self._parse_m3u8_formats_and_subtitles('\n'.join(m3u8_doc), ext='mp4', video_id=video_id)
             if subtitles:
                 self._report_ignoring_subs('m3u8')
@@ -1153,9 +1181,13 @@ class VLiveWebArchiveIE(InfoExtractor):
             key=lambda v: traverse_obj(v, ('bitrate', 'video'), default=0), default=None)
         if max_video is not None:
             video_url = self._WAYBACK_BASE_URL + max_video.get('source')
-            urlh = self._request_webpage(HEADRequest(video_url), video_id, errnote=False,
-                                         fatal=False, note='Check video availablity')
-            if urlh:
+            if urlh := self._request_webpage(
+                HEADRequest(video_url),
+                video_id,
+                errnote=False,
+                fatal=False,
+                note='Check video availablity',
+            ):
                 formats.append({'url': video_url})
 
         return {

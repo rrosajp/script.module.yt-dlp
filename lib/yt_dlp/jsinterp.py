@@ -36,9 +36,7 @@ def _js_bit_op(op):
 def _js_arith_op(op):
 
     def wrapped(a, b):
-        if JS_Undefined in (a, b):
-            return float('nan')
-        return op(a or 0, b or 0)
+        return float('nan') if JS_Undefined in (a, b) else op(a or 0, b or 0)
 
     return wrapped
 
@@ -50,9 +48,7 @@ def _js_div(a, b):
 
 
 def _js_mod(a, b):
-    if JS_Undefined in (a, b) or not b:
-        return float('nan')
-    return (a or 0) % b
+    return float('nan') if JS_Undefined in (a, b) or not b else (a or 0) % b
 
 
 def _js_exp(a, b):
@@ -66,9 +62,7 @@ def _js_exp(a, b):
 def _js_eq_op(op):
 
     def wrapped(a, b):
-        if {a, b} <= {None, JS_Undefined}:
-            return op(a, a)
-        return op(a, b)
+        return op(a, a) if {a, b} <= {None, JS_Undefined} else op(a, b)
 
     return wrapped
 
@@ -190,9 +184,10 @@ class Debugger:
                     cls.write('=> Raises:', e, '<-|', stmt, level=allow_recursion)
                 raise
             if cls.ENABLED and stmt.strip():
-                if should_ret or not repr(ret) == stmt:
+                if should_ret or repr(ret) != stmt:
                     cls.write(['->', '=>'][should_ret], repr(ret), '<-|', stmt, level=allow_recursion)
             return ret, should_ret
+
         return interpret_statement
 
 
@@ -786,7 +781,7 @@ class JSInterpreter:
             self.code)
         if not obj_m:
             raise self.Exception(f'Could not find object {objname}')
-        fields = obj_m.group('fields')
+        fields = obj_m['fields']
         # Currently, it only supports function definitions
         fields_m = re.finditer(
             r'''(?x)
@@ -814,8 +809,8 @@ class JSInterpreter:
             self.code)
         if func_m is None:
             raise self.Exception(f'Could not find JS function "{funcname}"')
-        code, _ = self._separate_at_paren(func_m.group('code'))
-        return [x.strip() for x in func_m.group('args').split(',')], code
+        code, _ = self._separate_at_paren(func_m['code'])
+        return [x.strip() for x in func_m['args'].split(',')], code
 
     def extract_function(self, funcname):
         return function_with_repr(
@@ -830,9 +825,15 @@ class JSInterpreter:
                 break
             start, body_start = mobj.span()
             body, remaining = self._separate_at_paren(code[body_start - 1:])
-            name = self._named_object(local_vars, self.extract_function_from_code(
-                [x.strip() for x in mobj.group('args').split(',')],
-                body, local_vars, *global_stack))
+            name = self._named_object(
+                local_vars,
+                self.extract_function_from_code(
+                    [x.strip() for x in mobj['args'].split(',')],
+                    body,
+                    local_vars,
+                    *global_stack
+                ),
+            )
             code = code[:start] + name + remaining
         return self.build_function(argnames, code, local_vars, *global_stack)
 

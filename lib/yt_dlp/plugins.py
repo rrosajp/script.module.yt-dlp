@@ -152,7 +152,7 @@ def load_plugins(name, suffix):
         except Exception:
             write_string(f'Error while importing module {module_name!r}\n{traceback.format_exc(limit=-1)}')
             continue
-        classes.update(load_module(module, module_name, suffix))
+        classes |= load_module(module, module_name, suffix)
 
     # Compat: old plugin system using __init__.py
     # Note: plugins imported this way do not show up in directories()
