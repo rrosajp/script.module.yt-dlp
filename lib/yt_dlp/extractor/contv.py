@@ -33,22 +33,27 @@ class CONtvIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
         details = self._download_json(
-            'http://metax.contv.live.junctiontv.net/metax/2.5/details/' + video_id,
-            video_id, query={'device': 'web'})
+            f'http://metax.contv.live.junctiontv.net/metax/2.5/details/{video_id}',
+            video_id,
+            query={'device': 'web'},
+        )
 
         if details.get('type') == 'episodic':
             seasons = self._download_json(
-                'http://metax.contv.live.junctiontv.net/metax/2.5/seriesfeed/json/' + video_id,
-                video_id)
+                f'http://metax.contv.live.junctiontv.net/metax/2.5/seriesfeed/json/{video_id}',
+                video_id,
+            )
             entries = []
             for season in seasons:
                 for episode in season.get('episodes', []):
-                    episode_id = episode.get('id')
-                    if not episode_id:
-                        continue
-                    entries.append(self.url_result(
-                        'https://www.contv.com/details-movie/' + episode_id,
-                        CONtvIE.ie_key(), episode_id))
+                    if episode_id := episode.get('id'):
+                        entries.append(
+                            self.url_result(
+                                f'https://www.contv.com/details-movie/{episode_id}',
+                                CONtvIE.ie_key(),
+                                episode_id,
+                            )
+                        )
             return self.playlist_result(entries, video_id, details.get('title'))
 
         m_details = details['details']
@@ -56,14 +61,12 @@ class CONtvIE(InfoExtractor):
 
         formats = []
 
-        media_hls_url = m_details.get('media_hls_url')
-        if media_hls_url:
+        if media_hls_url := m_details.get('media_hls_url'):
             formats.extend(self._extract_m3u8_formats(
                 media_hls_url, video_id, 'mp4',
                 m3u8_id='hls', fatal=False))
 
-        media_mp4_url = m_details.get('media_mp4_url')
-        if media_mp4_url:
+        if media_mp4_url := m_details.get('media_mp4_url'):
             formats.append({
                 'format_id': 'http',
                 'url': media_mp4_url,
@@ -78,19 +81,16 @@ class CONtvIE(InfoExtractor):
 
         thumbnails = []
         for image in m_details.get('images', []):
-            image_url = image.get('url')
-            if not image_url:
-                continue
-            thumbnails.append({
-                'url': image_url,
-                'width': int_or_none(image.get('width')),
-                'height': int_or_none(image.get('height')),
-            })
+            if image_url := image.get('url'):
+                thumbnails.append({
+                    'url': image_url,
+                    'width': int_or_none(image.get('width')),
+                    'height': int_or_none(image.get('height')),
+                })
 
         description = None
         for p in ('large_', 'medium_', 'small_', ''):
-            d = m_details.get(p + 'description')
-            if d:
+            if d := m_details.get(f'{p}description'):
                 description = d
                 break
 

@@ -12,8 +12,7 @@ class BitwaveReplayIE(InfoExtractor):
     def _real_extract(self, url):
         replay_id = self._match_id(url)
         replay = self._download_json(
-            'https://api.bitwave.tv/v1/replays/' + replay_id,
-            replay_id
+            f'https://api.bitwave.tv/v1/replays/{replay_id}', replay_id
         )
 
         return {
@@ -39,8 +38,8 @@ class BitwaveStreamIE(InfoExtractor):
     def _real_extract(self, url):
         username = self._match_id(url)
         channel = self._download_json(
-            'https://api.bitwave.tv/v1/channels/' + username,
-            username)
+            f'https://api.bitwave.tv/v1/channels/{username}', username
+        )
 
         formats = self._extract_m3u8_formats(
             channel['data']['url'], username,

@@ -94,11 +94,13 @@ class CorusIE(ThePlatformFeedIE):  # XXX: Do not subclass from concrete IE
         site = domain.split('.')[0]
         path = self._SITE_MAP.get(site, site)
         if path != 'series':
-            path = 'migration/' + path
+            path = f'migration/{path}'
         video = self._download_json(
-            'https://globalcontent.corusappservices.com/templates/%s/playlist/' % path,
-            video_id, query={'byId': video_id},
-            headers={'Accept': 'application/json'})[0]
+            f'https://globalcontent.corusappservices.com/templates/{path}/playlist/',
+            video_id,
+            query={'byId': video_id},
+            headers={'Accept': 'application/json'},
+        )[0]
         title = video['title']
 
         formats = []
@@ -107,14 +109,13 @@ class CorusIE(ThePlatformFeedIE):  # XXX: Do not subclass from concrete IE
             if not smil_url:
                 continue
             source_type = source.get('type')
-            note = 'Downloading%s smil file' % (' ' + source_type if source_type else '')
+            note = f"Downloading{f' {source_type}' if source_type else ''} smil file"
             resp = self._download_webpage(
                 smil_url, video_id, note, fatal=False,
                 headers=self.geo_verification_headers())
             if not resp:
                 continue
-            error = self._parse_json(resp, video_id, fatal=False)
-            if error:
+            if error := self._parse_json(resp, video_id, fatal=False):
                 if error.get('exception') == 'GeoLocationBlocked':
                     self.raise_geo_restricted(countries=['CA'])
                 raise ExtractorError(error['description'])
@@ -136,7 +137,9 @@ class CorusIE(ThePlatformFeedIE):  # XXX: Do not subclass from concrete IE
             subtitles.setdefault(lang, []).append({'url': track_url})
 
         metadata = video.get('metadata') or {}
-        get_number = lambda x: int_or_none(video.get('pl1$' + x) or metadata.get(x + 'Number'))
+        get_number = lambda x: int_or_none(
+            video.get(f'pl1${x}') or metadata.get(f'{x}Number')
+        )
 
         return {
             'id': video_id,

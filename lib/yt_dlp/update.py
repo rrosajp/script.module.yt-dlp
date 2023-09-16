@@ -287,8 +287,7 @@ class Updater:
         """Update yt-dlp executable to the latest version"""
         if not self.check_update():
             return
-        err = is_non_updateable()
-        if err:
+        if err := is_non_updateable():
             return self._report_error(err, True)
         self.ydl.to_screen(f'Updating to {self._label(self.target_channel, self.new_version)} ...')
         if (_VERSION_RE.fullmatch(self.target_tag[5:])

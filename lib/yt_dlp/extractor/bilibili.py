@@ -45,8 +45,7 @@ class BilibiliBaseIE(InfoExtractor):
         }
 
         audios = traverse_obj(play_info, ('dash', 'audio', ...))
-        flac_audio = traverse_obj(play_info, ('dash', 'flac', 'audio'))
-        if flac_audio:
+        if flac_audio := traverse_obj(play_info, ('dash', 'flac', 'audio')):
             audios.append(flac_audio)
         formats = [{
             'url': traverse_obj(audio, 'baseUrl', 'base_url', 'url'),
@@ -71,20 +70,19 @@ class BilibiliBaseIE(InfoExtractor):
             'format': format_names.get(video.get('id')),
         } for video in traverse_obj(play_info, ('dash', 'video', ...)))
 
-        missing_formats = format_names.keys() - set(traverse_obj(formats, (..., 'quality')))
-        if missing_formats:
+        if missing_formats := format_names.keys() - set(
+            traverse_obj(formats, (..., 'quality'))
+        ):
             self.to_screen(f'Format(s) {", ".join(format_names[i] for i in missing_formats)} are missing; '
                            f'you have to login or become premium member to download them. {self._login_hint()}')
 
         return formats
 
     def json2srt(self, json_data):
-        srt_data = ''
-        for idx, line in enumerate(json_data.get('body') or []):
-            srt_data += (f'{idx + 1}\n'
-                         f'{srt_subtitles_timecode(line["from"])} --> {srt_subtitles_timecode(line["to"])}\n'
-                         f'{line["content"]}\n\n')
-        return srt_data
+        return ''.join(
+            f'{idx + 1}\n{srt_subtitles_timecode(line["from"])} --> {srt_subtitles_timecode(line["to"])}\n{line["content"]}\n\n'
+            for idx, line in enumerate(json_data.get('body') or [])
+        )
 
     def _get_subtitles(self, video_id, aid, cid):
         subtitles = {
@@ -581,8 +579,7 @@ class BilibiliSpaceVideoIE(BilibiliSpaceBaseIE):
             12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63,
             57, 62, 11, 36, 20, 34, 44, 52
         ):
-            char_at_position = try_call(lambda: session_key[position])
-            if char_at_position:
+            if char_at_position := try_call(lambda: session_key[position]):
                 signature_values.append(char_at_position)
 
         return ''.join(signature_values)[:32]
@@ -729,8 +726,11 @@ class BilibiliCategoryIE(InfoExtractor):
 
     def _fetch_page(self, api_url, num_pages, query, page_num):
         parsed_json = self._download_json(
-            api_url, query, query={'Search_key': query, 'pn': page_num},
-            note='Extracting results from page %s of %s' % (page_num, num_pages))
+            api_url,
+            query,
+            query={'Search_key': query, 'pn': page_num},
+            note=f'Extracting results from page {page_num} of {num_pages}',
+        )
 
         video_list = traverse_obj(parsed_json, ('data', 'archives'), expected_type=list)
         if not video_list:
@@ -738,7 +738,10 @@ class BilibiliCategoryIE(InfoExtractor):
 
         for video in video_list:
             yield self.url_result(
-                'https://www.bilibili.com/video/%s' % video['bvid'], 'BiliBili', video['bvid'])
+                f"https://www.bilibili.com/video/{video['bvid']}",
+                'BiliBili',
+                video['bvid'],
+            )
 
     def _entries(self, category, subcategory, query):
         # map of categories : subcategories : RIDs
@@ -774,7 +777,7 @@ class BilibiliCategoryIE(InfoExtractor):
 
     def _real_extract(self, url):
         category, subcategory = urllib.parse.urlparse(url).path.split('/')[2:4]
-        query = '%s: %s' % (category, subcategory)
+        query = f'{category}: {subcategory}'
 
         return self.playlist_result(self._entries(category, subcategory, query), query, query)
 
@@ -811,8 +814,10 @@ class BilibiliAudioBaseIE(InfoExtractor):
         if not query:
             query = {'sid': sid}
         return self._download_json(
-            'https://www.bilibili.com/audio/music-service-c/web/' + path,
-            sid, query=query)['data']
+            f'https://www.bilibili.com/audio/music-service-c/web/{path}',
+            sid,
+            query=query,
+        )['data']
 
 
 class BilibiliAudioIE(BilibiliAudioBaseIE):
@@ -861,8 +866,7 @@ class BilibiliAudioIE(BilibiliAudioBaseIE):
         statistic = song.get('statistic') or {}
 
         subtitles = None
-        lyric = song.get('lyric')
-        if lyric:
+        if lyric := song.get('lyric'):
             subtitles = {
                 'origin': [{
                     'url': lyric,
@@ -905,17 +909,18 @@ class BilibiliAudioAlbumIE(BilibiliAudioBaseIE):
 
         entries = []
         for song in songs:
-            sid = str_or_none(song.get('id'))
-            if not sid:
-                continue
-            entries.append(self.url_result(
-                'https://www.bilibili.com/audio/au' + sid,
-                BilibiliAudioIE.ie_key(), sid))
+            if sid := str_or_none(song.get('id')):
+                entries.append(
+                    self.url_result(
+                        f'https://www.bilibili.com/audio/au{sid}',
+                        BilibiliAudioIE.ie_key(),
+                        sid,
+                    )
+                )
 
         if entries:
             album_data = self._call_api('menu/info', am_id) or {}
-            album_title = album_data.get('title')
-            if album_title:
+            if album_title := album_data.get('title'):
                 for entry in entries:
                     entry['album'] = album_title
                 return self.playlist_result(
@@ -934,8 +939,10 @@ class BiliBiliPlayerIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
         return self.url_result(
-            'http://www.bilibili.tv/video/av%s/' % video_id,
-            ie=BiliBiliIE.ie_key(), video_id=video_id)
+            f'http://www.bilibili.tv/video/av{video_id}/',
+            ie=BiliBiliIE.ie_key(),
+            video_id=video_id,
+        )
 
 
 class BiliIntlBaseIE(InfoExtractor):
@@ -961,11 +968,15 @@ class BiliIntlBaseIE(InfoExtractor):
         return json.get('data')
 
     def json2srt(self, json):
-        data = '\n\n'.join(
+        return '\n\n'.join(
             f'{i + 1}\n{srt_subtitles_timecode(line["from"])} --> {srt_subtitles_timecode(line["to"])}\n{line["content"]}'
-            for i, line in enumerate(traverse_obj(json, (
-                'body', lambda _, l: l['content'] and l['from'] and l['to']))))
-        return data
+            for i, line in enumerate(
+                traverse_obj(
+                    json,
+                    ('body', lambda _, l: l['content'] and l['from'] and l['to']),
+                )
+            )
+        )
 
     def _get_subtitles(self, *, ep_id=None, aid=None):
         sub_json = self._call_api(
@@ -983,8 +994,14 @@ class BiliIntlBaseIE(InfoExtractor):
             if not sub_url:
                 continue
             sub_data = self._download_json(
-                sub_url, ep_id or aid, errnote='Unable to download subtitles', fatal=False,
-                note='Downloading subtitles%s' % f' for {sub["lang"]}' if sub.get('lang') else '')
+                sub_url,
+                ep_id or aid,
+                errnote='Unable to download subtitles',
+                fatal=False,
+                note=f'Downloading subtitles for {sub["lang"]}'
+                if sub.get('lang')
+                else '',
+            )
             if not sub_data:
                 continue
             subtitles.setdefault(sub.get('lang_key', 'en'), []).append({
@@ -1019,18 +1036,18 @@ class BiliIntlBaseIE(InfoExtractor):
                 'vcodec': video_res.get('codecs'),
                 'filesize': video_res.get('size'),
             })
-        for aud in video_json.get('audio_resource') or []:
-            if not aud.get('url'):
-                continue
-            formats.append({
+        formats.extend(
+            {
                 'url': aud['url'],
                 'ext': 'mp4',
                 'abr': aud.get('bandwidth'),
                 'acodec': aud.get('codecs'),
                 'vcodec': 'none',
                 'filesize': aud.get('size'),
-            })
-
+            }
+            for aud in video_json.get('audio_resource') or []
+            if aud.get('url')
+        )
         return formats
 
     def _parse_video_metadata(self, video_data):
@@ -1222,10 +1239,10 @@ class BiliIntlIE(BiliIntlBaseIE):
         'only_matching': True,
     }]
 
-    def _make_url(video_id, series_id=None):
+    def _make_url(self, series_id=None):
         if series_id:
-            return f'https://www.bilibili.tv/en/play/{series_id}/{video_id}'
-        return f'https://www.bilibili.tv/en/video/{video_id}'
+            return f'https://www.bilibili.tv/en/play/{series_id}/{self}'
+        return f'https://www.bilibili.tv/en/video/{self}'
 
     def _extract_video_metadata(self, url, video_id, season_id):
         url, smuggled_data = unsmuggle_url(url, {})

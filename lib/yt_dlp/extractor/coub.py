@@ -44,11 +44,11 @@ class CoubIE(InfoExtractor):
         video_id = self._match_id(url)
 
         coub = self._download_json(
-            'http://coub.com/api/v2/coubs/%s.json' % video_id, video_id)
+            f'http://coub.com/api/v2/coubs/{video_id}.json', video_id
+        )
 
         if coub.get('error'):
-            raise ExtractorError(
-                '%s said: %s' % (self.IE_NAME, coub['error']), expected=True)
+            raise ExtractorError(f"{self.IE_NAME} said: {coub['error']}", expected=True)
 
         title = coub['title']
 
@@ -75,34 +75,34 @@ class CoubIE(InfoExtractor):
             for quality, item in items.items():
                 if not isinstance(item, dict):
                     continue
-                item_url = item.get('url')
-                if not item_url:
-                    continue
-                formats.append({
-                    'url': item_url,
-                    'format_id': '%s-%s-%s' % (HTML5, kind, quality),
-                    'filesize': int_or_none(item.get('size')),
-                    'vcodec': 'none' if kind == 'audio' else None,
-                    'acodec': 'none' if kind == 'video' else None,
-                    'quality': quality_key(quality),
-                    'source_preference': preference_key(HTML5),
-                })
+                if item_url := item.get('url'):
+                    formats.append(
+                        {
+                            'url': item_url,
+                            'format_id': f'{HTML5}-{kind}-{quality}',
+                            'filesize': int_or_none(item.get('size')),
+                            'vcodec': 'none' if kind == 'audio' else None,
+                            'acodec': 'none' if kind == 'video' else None,
+                            'quality': quality_key(quality),
+                            'source_preference': preference_key(HTML5),
+                        }
+                    )
 
-        iphone_url = file_versions.get(IPHONE, {}).get('url')
-        if iphone_url:
+        if iphone_url := file_versions.get(IPHONE, {}).get('url'):
             formats.append({
                 'url': iphone_url,
                 'format_id': IPHONE,
                 'source_preference': preference_key(IPHONE),
             })
 
-        mobile_url = file_versions.get(MOBILE, {}).get('audio_url')
-        if mobile_url:
-            formats.append({
-                'url': mobile_url,
-                'format_id': '%s-audio' % MOBILE,
-                'source_preference': preference_key(MOBILE),
-            })
+        if mobile_url := file_versions.get(MOBILE, {}).get('audio_url'):
+            formats.append(
+                {
+                    'url': mobile_url,
+                    'format_id': f'{MOBILE}-audio',
+                    'source_preference': preference_key(MOBILE),
+                }
+            )
 
         thumbnail = coub.get('picture')
         duration = float_or_none(coub.get('duration'))

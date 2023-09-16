@@ -31,12 +31,12 @@ class CarambaTVIE(InfoExtractor):
         video_id = self._match_id(url)
 
         video = self._download_json(
-            'http://video1.carambatv.ru/v/%s/videoinfo.js' % video_id,
-            video_id)
+            f'http://video1.carambatv.ru/v/{video_id}/videoinfo.js', video_id
+        )
 
         title = video['title']
 
-        base_url = video.get('video') or 'http://video1.carambatv.ru/v/%s/' % video_id
+        base_url = video.get('video') or f'http://video1.carambatv.ru/v/{video_id}/'
 
         formats = [{
             'url': base_url + f['fn'],
@@ -80,11 +80,13 @@ class CarambaTVPageIE(InfoExtractor):
 
         videomore_url = VideomoreIE._extract_url(webpage)
         if not videomore_url:
-            videomore_id = self._search_regex(
-                r'getVMCode\s*\(\s*["\']?(\d+)', webpage, 'videomore id',
-                default=None)
-            if videomore_id:
-                videomore_url = 'videomore:%s' % videomore_id
+            if videomore_id := self._search_regex(
+                r'getVMCode\s*\(\s*["\']?(\d+)',
+                webpage,
+                'videomore id',
+                default=None,
+            ):
+                videomore_url = f'videomore:{videomore_id}'
         if videomore_url:
             title = self._og_search_title(webpage)
             return {
@@ -100,6 +102,6 @@ class CarambaTVPageIE(InfoExtractor):
             video_id = self._search_regex(
                 r'(?:video_id|crmb_vuid)\s*[:=]\s*["\']?(\d+)',
                 webpage, 'video id')
-            video_url = 'carambatv:%s' % video_id
+            video_url = f'carambatv:{video_id}'
 
         return self.url_result(video_url, CarambaTVIE.ie_key())

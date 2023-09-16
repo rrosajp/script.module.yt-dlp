@@ -26,7 +26,8 @@ class Canalc2IE(InfoExtractor):
         video_id = self._match_id(url)
 
         webpage = self._download_webpage(
-            'http://www.canalc2.tv/video/%s' % video_id, video_id)
+            f'http://www.canalc2.tv/video/{video_id}', video_id
+        )
 
         title = self._html_search_regex(
             r'(?s)class="[^"]*col_description[^"]*">.*?<h3>(.+?)</h3>',
@@ -37,14 +38,16 @@ class Canalc2IE(InfoExtractor):
             if video_url.startswith('rtmp://'):
                 rtmp = re.search(
                     r'^(?P<url>rtmp://[^/]+/(?P<app>.+/))(?P<play_path>mp4:.+)$', video_url)
-                formats.append({
-                    'url': rtmp.group('url'),
-                    'format_id': 'rtmp',
-                    'ext': 'flv',
-                    'app': rtmp.group('app'),
-                    'play_path': rtmp.group('play_path'),
-                    'page_url': url,
-                })
+                formats.append(
+                    {
+                        'url': rtmp['url'],
+                        'format_id': 'rtmp',
+                        'ext': 'flv',
+                        'app': rtmp['app'],
+                        'play_path': rtmp['play_path'],
+                        'page_url': url,
+                    }
+                )
             else:
                 formats.append({
                     'url': video_url,

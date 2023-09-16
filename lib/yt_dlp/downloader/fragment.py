@@ -162,8 +162,7 @@ class FragmentFD(FileDownloader):
     def _prepare_frag_download(self, ctx):
         if not ctx.setdefault('live', False):
             total_frags_str = '%d' % ctx['total_frags']
-            ad_frags = ctx.get('ad_frags', 0)
-            if ad_frags:
+            if ad_frags := ctx.get('ad_frags', 0):
                 total_frags_str += ' (not including %d ad)' % ad_frags
         else:
             total_frags_str = 'unknown (live)'
@@ -178,13 +177,9 @@ class FragmentFD(FileDownloader):
             'sleep_interval_subtitles': 0,
         })
         tmpfilename = self.temp_name(ctx['filename'])
-        open_mode = 'wb'
-
         # Establish possible resume length
         resume_len = self.filesize_or_none(tmpfilename)
-        if resume_len > 0:
-            open_mode = 'ab'
-
+        open_mode = 'ab' if resume_len > 0 else 'wb'
         # Should be initialized before ytdl file check
         ctx.update({
             'tmpfilename': tmpfilename,
@@ -202,8 +197,7 @@ class FragmentFD(FileDownloader):
                     message = (
                         '.ytdl file is corrupt' if is_corrupt else
                         'Inconsistent state of incomplete fragment download')
-                    self.report_warning(
-                        '%s. Restarting from the beginning ...' % message)
+                    self.report_warning(f'{message}. Restarting from the beginning ...')
                     ctx['fragment_index'] = resume_len = 0
                     if 'ytdl_corrupt' in ctx:
                         del ctx['ytdl_corrupt']
@@ -338,8 +332,7 @@ class FragmentFD(FileDownloader):
             ctx['live'] = False
         if not ctx['live']:
             total_frags_str = '%d' % ctx['total_frags']
-            ad_frags = ctx.get('ad_frags', 0)
-            if ad_frags:
+            if ad_frags := ctx.get('ad_frags', 0):
                 total_frags_str += ' (not including %d ad)' % ad_frags
         else:
             total_frags_str = 'unknown (live)'

@@ -32,8 +32,7 @@ class ChirbitIE(InfoExtractor):
     def _real_extract(self, url):
         audio_id = self._match_id(url)
 
-        webpage = self._download_webpage(
-            'http://chirb.it/%s' % audio_id, audio_id)
+        webpage = self._download_webpage(f'http://chirb.it/{audio_id}', audio_id)
 
         data_fd = self._search_regex(
             r'data-fd=(["\'])(?P<url>(?:(?!\1).)+)\1',
@@ -82,7 +81,10 @@ class ChirbitProfileIE(InfoExtractor):
         webpage = self._download_webpage(url, profile_id)
 
         entries = [
-            self.url_result(self._proto_relative_url('//chirb.it/' + video_id))
-            for _, video_id in re.findall(r'<input[^>]+id=([\'"])copy-btn-(?P<id>[0-9a-zA-Z]+)\1', webpage)]
+            self.url_result(self._proto_relative_url(f'//chirb.it/{video_id}'))
+            for _, video_id in re.findall(
+                r'<input[^>]+id=([\'"])copy-btn-(?P<id>[0-9a-zA-Z]+)\1', webpage
+            )
+        ]
 
         return self.playlist_result(entries, profile_id)

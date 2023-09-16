@@ -329,15 +329,17 @@ class AnvatoIE(InfoExtractor):
                     video_url, video_id, m3u8_id='vtt', fatal=False)
                 continue
             elif media_format == 'm3u8' and tbr is not None:
-                a_format.update({
+                a_format |= {
                     'format_id': join_nonempty('hls', tbr),
                     'ext': 'mp4',
-                })
+                }
             elif media_format == 'm3u8-variant' or ext == 'm3u8':
-                # For some videos the initial m3u8 URL returns JSON instead
-                manifest_json = self._download_json(
-                    video_url, video_id, note='Downloading manifest JSON', fatal=False)
-                if manifest_json:
+                if manifest_json := self._download_json(
+                    video_url,
+                    video_id,
+                    note='Downloading manifest JSON',
+                    fatal=False,
+                ):
                     video_url = manifest_json.get('master_m3u8')
                     if not video_url:
                         continue
@@ -348,10 +350,10 @@ class AnvatoIE(InfoExtractor):
             elif ext == 'mp3' or media_format == 'mp3':
                 a_format['vcodec'] = 'none'
             else:
-                a_format.update({
+                a_format |= {
                     'width': int_or_none(published_url.get('width')),
                     'height': int_or_none(published_url.get('height')),
-                })
+                }
             formats.append(a_format)
 
         subtitles = {}

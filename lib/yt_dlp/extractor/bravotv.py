@@ -127,11 +127,15 @@ class BravoTVIE(AdobePassIE):
                 resource = self._get_mvpd_resource(
                     tve.get('data-adobe-pass-resource-id') or auth.get('adobePassResourceId') or site,
                     tve['data-title'], release_pid, tve.get('data-rating'))
-                query.update({
+                query |= {
                     'switch': 'HLSServiceSecure',
                     'auth': self._extract_mvpd_auth(
-                        url, release_pid, auth.get('adobePassRequestorId') or site, resource),
-                })
+                        url,
+                        release_pid,
+                        auth.get('adobePassRequestorId') or site,
+                        resource,
+                    ),
+                }
 
         else:
             ls_playlist = traverse_obj(settings, ('ls_playlist', ..., {dict}), get_all=False) or {}
